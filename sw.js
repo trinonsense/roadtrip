@@ -1,4 +1,4 @@
-importScripts('https://storage.googleapis.com/workbox-cdn/releases/3.0.0-beta.0/workbox-sw.js');
+importScripts('https://storage.googleapis.com/workbox-cdn/releases/3.4.1/workbox-sw.js');
 
 // Uncomment for debugging
 // workbox.core.setLogLevel(workbox.core.LOG_LEVELS.debug);
@@ -32,10 +32,8 @@ workbox.routing.registerRoute(
 );
 
 workbox.routing.registerRoute(
-  // Cache immutable files forever
   /^https:\/\/[^.]+\.wikipedia\.org\//,
-  // Use the cache if it's available
-  workbox.strategies.cacheFirst({
+  workbox.strategies.networkFirst({
     cacheName: 'wiki-cache',
     plugins: [
       new workbox.expiration.Plugin({
