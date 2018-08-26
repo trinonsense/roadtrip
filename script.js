@@ -54,7 +54,7 @@ function wikiUrl(path, api, mobile) {
 }
 
 function startWatchLocation() {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     navigator.geolocation.watchPosition(pos => {
       if (!manualPosition) {
         console.info('Updated position', pos);
@@ -67,9 +67,11 @@ function startWatchLocation() {
     }, error => {
       console.error('WatchPosition error.', error.message, error);
       alert('Failed to find your current location.')
+      reject()
     }, {
-      enableHighAccuracy: false,
-      maximumAge: 15000,
+      timeout: 5000,
+      maximumAge: Infinity,
+      enableHighAccuracy: false
     });
   });
 }
@@ -285,8 +287,16 @@ async function start() {
     timeout: 10000,
   });
   await speak(state.lang.welcomeMsg + '\n\n', state.lang.speechTag);
-  await s;
-  next();
+
+  try {
+    await s
+    next()
+
+  } catch(e) {
+    state.loading = false
+    state.status = ''
+    render()
+  }
 }
 
 async function next() {
@@ -300,17 +310,21 @@ async function next() {
     'page_path': '/next/' + state.lang.speechTag,
   });
   try {
+    let article
+  try {
     console.info('Finding article.');
-    let article = await getArticleForLocation();
-    if (!article) {
+      article = await getArticleForLocation()
+
+    } catch(e) {
       console.info('Did not find location article. Trying nearby.');
+      try {
       article = await getNearbyArticle();
-    }
-    if (!article) {
+      } catch (e) {
       console.info('Did not find article');
       setTimeout(next, pollSeconds * 1000);
-      return;
     }
+    }
+
     console.info('Retrieved article');
     state.loading = false;
     render();
@@ -337,6 +351,7 @@ function unsave(article) {
   console.log('unsave article', article)
   console.log('saved articles', state.savedArticles)
 }
+
 function pause() {
   state.paused = true;
   render()
