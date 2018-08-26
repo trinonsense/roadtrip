@@ -7,3 +7,7 @@
 #map {
   height: 300px
 }
+
+.mdl-button {
+  margin-top:4px;
+}

@@ -5,6 +5,8 @@ let locationData;
 let cancelSpeaking;
 let skipThisParagraph;
 const state = {
+  currentArticle: null,
+  savedArticles: [],
   playing: false,
   loading: false,
   paused: false,
@@ -251,6 +253,7 @@ function speakSentence(text, language) {
 }
 
 async function talkAboutLocation(article) {
+  state.currentArticle = article
   state.status = `Reading about <a href="${article.url}" target="_blank">${html(article.title)}</a>`;
   render();
   gtag('config', 'UA-121987888-1', {
@@ -318,6 +321,20 @@ async function next() {
   next();
 }
 
+function save(article) {
+  if (state.savedArticles.length === 10) state.savedArticles.shift()
+  state.savedArticles.push(article)
+  render()
+  console.log('save article', article)
+  console.log('saved articles', state.savedArticles)
+}
+
+function unsave(article) {
+  state.savedArticles = state.savedArticles.filter(a => a !== article)
+  render()
+  console.log('unsave article', article)
+  console.log('saved articles', state.savedArticles)
+}
 function pause() {
   state.paused = true;
   render()
@@ -349,6 +366,10 @@ function render() {
   $('html_skip').style.display = display(!state.loading && state.playing);
   $('html_spinner').style.display = display(state.loading);
   $('html_title').innerHTML = state.status;
+
+  const currectArticleSaved = state.savedArticles.find(a => a === state.currentArticle)
+  $('html_save').style.display = display(!state.loading && state.playing && !currectArticleSaved);
+  $('html_unsave').style.display = display(!state.loading && state.playing && currectArticleSaved);
 }
 
 function simpleHtmlToText(html) {

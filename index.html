@@ -30,8 +30,8 @@
     <meta name="theme-color" content="#3f51b5">
     <link rel="apple-touch-icon" href="https://cdn.glitch.com/93aac3ad-5e37-4ee6-8bf0-133d676ba436%2Flogo.png?1530855990742">
     <meta name="description" content="This app will read to you about the places and points of interest you drive by.">
-  </head>  
-  
+  </head>
+
 <body>
 <!-- Always shows a header, even in smaller screens. -->
 <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
@@ -72,10 +72,16 @@
       <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" onclick="play()" id="html_play"  style="display:none">
         Play
       </button>
-      <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" onclick="skipParagraph()" id="html_skip"  style="margin-top:4px;display:none">
+      <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" onclick="save(state.currentArticle)" id="html_save"  style="display:none">
+        Save
+      </button>
+      <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" onclick="unsave(state.currentArticle)" id="html_unsave"  style="display:none">
+        Unsave
+      </button>
+      <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" onclick="skipParagraph()" id="html_skip"  style="display:none">
         Skip Paragraph
       </button>
-      <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" onclick="forward()" id="html_next"  style="margin-top:4px;display:none">
+      <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" onclick="forward()" id="html_next"  style="display:none">
         Next Article
       </button>
       <hr>
