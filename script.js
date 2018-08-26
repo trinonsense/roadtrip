@@ -30,7 +30,7 @@ const languageMap = {
   'Cebuano': {wikiTag: 'ceb', speechTag: 'ceb', welcomeMsg: 'Welcome sa imong pagbiyahe sa dalan.'},
   'Svenska': {wikiTag: 'sv', speechTag: 'sv-SE', welcomeMsg: 'Välkommen till din vägresa.'},
   'Deutsch': {wikiTag: 'de', speechTag: 'de-DE', welcomeMsg: 'Willkommen zu Ihrem Roadtrip.'},
-  'Nederlands	': {wikiTag: 'nl', speechTag: 'nl-NL', welcomeMsg: 'Welkom bij je roadtrip.'},
+  'Nederlands ': {wikiTag: 'nl', speechTag: 'nl-NL', welcomeMsg: 'Welkom bij je roadtrip.'},
   'русский': {wikiTag: 'ru', speechTag: 'ru-RU', welcomeMsg: 'Добро пожаловать в свою поездку.'},
   'Italiano': {wikiTag: 'it', speechTag: 'it-IT', welcomeMsg: 'Benvenuto nel tuo viaggio.'},
   'Español': {wikiTag: 'es', speechTag: 'es', welcomeMsg: 'Bienvenido a tu viaje.'},
@@ -183,19 +183,19 @@ async function getNearbyArticle() {
     console.error('Wikipedia nearby failed', response)
     throw new Error('Wikipedia nearby is down');
   }
-  const json = await response.json();
+    const json = await response.json();
   console.info('Nearby response', json);
-  const pages = json.query.pages;
-  for (let page of pages) {
-    const title = page.title;
-    if (seen[title]) {
-      continue;
+    const pages = json.query.pages;
+    for (let page of pages) {
+      const title = page.title;
+      if (seen[title]) {
+        continue;
+      }
+      seen[title] = true;
+      console.info('Title', title);
+      return getContent(title);
     }
-    seen[title] = true;
-    console.info('Title', title);
-    return getContent(title);
-  }
-  return null;
+    return null;
 }
 
 async function speak(text, language) {
@@ -219,7 +219,7 @@ async function speak(text, language) {
       }
     }
   }
-  
+
 }
 
 function speakSentence(text, language) {
@@ -257,7 +257,7 @@ function speakSentence(text, language) {
 }
 
 async function talkAboutLocation(article) {
-  state.currentArticle = article
+  state.currentArticle = article.title
   state.status = `Reading about <a href="${article.url}" target="_blank">${html(article.title)}</a>`;
   render();
   gtag('config', 'UA-121987888-1', {
@@ -311,18 +311,18 @@ async function next() {
   });
   try {
     let article
-  try {
-    console.info('Finding article.');
+    try {
+      console.info('Finding article.');
       article = await getArticleForLocation()
 
     } catch(e) {
       console.info('Did not find location article. Trying nearby.');
       try {
-      article = await getNearbyArticle();
+        article = await getNearbyArticle();
       } catch (e) {
-      console.info('Did not find article');
-      setTimeout(next, pollSeconds * 1000);
-    }
+        console.info('Did not find article');
+        setTimeout(next, pollSeconds * 1000);
+      }
     }
 
     console.info('Retrieved article');
@@ -387,6 +387,20 @@ function render() {
   const currectArticleSaved = state.savedArticles.find(a => a === state.currentArticle)
   $('html_save').style.display = display(!state.loading && state.playing && !currectArticleSaved);
   $('html_unsave').style.display = display(!state.loading && state.playing && currectArticleSaved);
+  $('html_saved_articles').innerHTML = state.savedArticles.reduce(toSavedArticlesHTML, '')
+}
+
+function toSavedArticlesHTML(list, article) {
+  return list + `
+    <li class="mdl-list__item" onclick="play('${article}')">
+      <span class="mdl-list__item-primary-content">${article}</span>
+      <span class="mdl-list__item-secondary-action">
+        <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" onclick="unsave('${article}')">
+          unsave
+        </button>
+      </span>
+    </li>
+  `
 }
 
 function simpleHtmlToText(html) {
@@ -445,7 +459,7 @@ function initMap() {
       }
     };
     centerMarker.setPosition({
-      lat: map.getCenter().lat(), 
+      lat: map.getCenter().lat(),
       lng: map.getCenter().lng()
     });
     console.info('Map position', position);
@@ -494,7 +508,7 @@ function timeout(time, message) {
 }
 
 function fetchWithTimeout(url, paras) {
-  return Promise.race([fetch(url, paras), 
+  return Promise.race([fetch(url, paras),
                        timeout(15 * 1000, 'Fetch timed out for ' + url)]);
 }
 
