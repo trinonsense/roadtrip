@@ -4,9 +4,18 @@ let map;
 let locationData;
 let cancelSpeaking;
 let skipThisParagraph;
+let savedArticles
+const SAVED_SEPARATOR = '/'
+const SAVED_ARTICLES = 'SAVED_ARTICLES'
+try {
+  savedArticles = localStorage.getItem(SAVED_ARTICLES).split(SAVED_SEPARATOR)
+} catch(e) {
+  savedArticles = []
+}
+
 const state = {
   currentArticle: null,
-  savedArticles: [],
+  savedArticles,
   playing: false,
   loading: false,
   paused: false,
@@ -525,8 +534,12 @@ async function guessLang() {
 function init() {
   onunload = function() {
     window.speechSynthesis.cancel();
+    if(state.savedArticles.length) {
+      localStorage.setItem(SAVED_ARTICLES, state.savedArticles.join(SAVED_SEPARATOR))
+    }
   }
   navigator.serviceWorker.register("/sw.js");
+  render();
 
   const l = new URLSearchParams(location.search).get('lang');
   if (l) {
