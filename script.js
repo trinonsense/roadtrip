@@ -174,7 +174,9 @@ async function getArticleForLocation() {
 
 async function getNearbyArticle() {
   console.info('Finding nearby article');
-  const response = await fetchWithTimeout(wikiUrl('action=query&format=json&origin=*&generator=geosearch&ggsradius=10000&ggsnamespace=0&ggslimit=50&formatversion=2&ggscoord=' + encodeURIComponent(position.coords.latitude) + '%7C' + encodeURIComponent(position.coords.longitude), true, true));
+  const latitude = position.coords.latitude.toFixed(4)
+  const longitude = position.coords.longitude.toFixed(4)
+  const response = await fetchWithTimeout(wikiUrl('action=query&format=json&origin=*&generator=geosearch&ggsradius=10000&ggsnamespace=0&ggslimit=50&formatversion=2&ggscoord=' + encodeURIComponent(latitude) + '%7C' + encodeURIComponent(longitude), true, true));
   if (!response.ok) {
     console.error('Wikipedia nearby failed', response)
     throw new Error('Wikipedia nearby is down');

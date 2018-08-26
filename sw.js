@@ -4,7 +4,7 @@ importScripts('https://storage.googleapis.com/workbox-cdn/releases/3.4.1/workbox
 // workbox.core.setLogLevel(workbox.core.LOG_LEVELS.debug);
 
 workbox.routing.registerRoute(
-  /^https:\/\/((\w+)\.googleapis\.com|www\.googletagmanager\.com|code\.getmdl\.io)\/.+$/,
+  /^https:\/\/((\w+)\.googleapis\.com|www\.googletagmanager\.com|code\.getmdl\.io|\w+\.gstatic\.com)\/.+$/,
   workbox.strategies.staleWhileRevalidate({
     cacheName: 'google-cache',
     plugins: [
@@ -32,7 +32,7 @@ workbox.routing.registerRoute(
 );
 
 workbox.routing.registerRoute(
-  /^https:\/\/[^.]+\.wikipedia\.org\//,
+  /^https:\/\/[^.]+\.(m\.)?wikipedia\.org\//,
   workbox.strategies.networkFirst({
     cacheName: 'wiki-cache',
     plugins: [
