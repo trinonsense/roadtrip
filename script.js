@@ -287,7 +287,6 @@ async function talkAboutLocation(article) {
 async function start() {
   state.playing = true;
   state.loading = true;
-  state.lang = languageMap[$('language_inner_select').value];
   state.status = 'Finding your location.'
   render();
   const s = startWatchLocation();
@@ -303,13 +302,14 @@ async function start() {
 
   } catch(e) {
     state.loading = false
-    state.status = ''
+    state.status = 'unable to retrieve your location'
     render()
   }
 }
 
-async function next() {
+async function next(article) {
   console.info('Starting session');
+  state.interjectArticle = null
   state.playing = true;
   state.loading = true;
   state.status = 'Finding something interesting to read. I\'ll keep checking as you move.'
@@ -319,18 +319,20 @@ async function next() {
     'page_path': '/next/' + state.lang.speechTag,
   });
   try {
-    let article
-    try {
-      console.info('Finding article.');
-      article = await getArticleForLocation()
-
-    } catch(e) {
-      console.info('Did not find location article. Trying nearby.');
+    if (!article) {
       try {
-        article = await getNearbyArticle();
-      } catch (e) {
-        console.info('Did not find article');
-        setTimeout(next, pollSeconds * 1000);
+        console.info('Finding article.');
+        article = await getArticleForLocation()
+
+      } catch(e) {
+        try {
+          console.info('Did not find location article. Trying nearby.');
+          article = await getNearbyArticle();
+
+        } catch (e) {
+          console.info('Did not find article');
+          setTimeout(next, pollSeconds * 1000);
+        }
       }
     }
 
@@ -338,12 +340,13 @@ async function next() {
     state.loading = false;
     render();
     await talkAboutLocation(article);
+
   } catch (e) {
     console.error('Error :' + e, e);
     setTimeout(next, pollSeconds * 1000);
     return;
   }
-  next();
+  next(state.interjectArticle);
 }
 
 function save(article) {
@@ -373,6 +376,22 @@ function play() {
   window.speechSynthesis.resume();
 }
 
+async function playArticle(title) {
+  try {
+    const article = await getContent(title)
+    if (state.playing) {
+      state.interjectArticle = article
+      forward()
+
+    } else {
+      next(article)
+    }
+
+  } catch(e) {
+    console.error(e)
+  }
+}
+
 function forward() {
   cancelSpeaking = true;
   window.speechSynthesis.cancel();
@@ -391,7 +410,7 @@ function render() {
   $('html_next').style.display = display(!state.loading && state.playing);
   $('html_skip').style.display = display(!state.loading && state.playing);
   $('html_spinner').style.display = display(state.loading);
-  $('html_title').innerHTML = state.status;
+  if (state.status) $('html_title').innerHTML = state.status;
 
   const currectArticleSaved = state.savedArticles.find(a => a === state.currentArticle)
   $('html_save').style.display = display(!state.loading && state.playing && !currectArticleSaved);
@@ -401,7 +420,7 @@ function render() {
 
 function toSavedArticlesHTML(list, article) {
   return list + `
-    <li class="mdl-list__item" onclick="play('${article}')">
+    <li class="mdl-list__item" onclick="playArticle('${article}')">
       <span class="mdl-list__item-primary-content">${article}</span>
       <span class="mdl-list__item-secondary-action">
         <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" onclick="unsave('${article}')">
@@ -508,6 +527,7 @@ function selectLang(langTag) {
     };
   }
   initLanguageSelect(selected);
+  state.lang = languageMap[$('language_inner_select').value];
 }
 
 function timeout(time, message) {
