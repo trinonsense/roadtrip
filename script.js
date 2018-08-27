@@ -420,8 +420,8 @@ function render() {
 
 function toSavedArticlesHTML(list, article) {
   return list + `
-    <li class="mdl-list__item" onclick="playArticle('${article}')">
-      <span class="mdl-list__item-primary-content">${article}</span>
+    <li class="mdl-list__item">
+      <span class="saved-article mdl-list__item-primary-content" onclick="playArticle('${article}')">${article}</span>
       <span class="mdl-list__item-secondary-action">
         <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" onclick="unsave('${article}')">
           unsave
