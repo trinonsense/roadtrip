@@ -78,9 +78,9 @@ function startWatchLocation() {
       alert('Failed to find your current location.')
       reject()
     }, {
+      enableHighAccuracy: false,
       timeout: 5000,
-      maximumAge: Infinity,
-      enableHighAccuracy: false
+      maximumAge: 15000,
     });
   });
 }
@@ -285,8 +285,8 @@ async function talkAboutLocation(article) {
 }
 
 async function start() {
-  state.playing = true;
   state.loading = true;
+  state.started = true;
   state.status = 'Finding your location.'
   render();
   const s = startWatchLocation();
@@ -298,7 +298,12 @@ async function start() {
 
   try {
     await s
-    next()
+    if (state.playing) {
+      forward()
+    } else {
+      state.playing = true;
+      next()
+    }
 
   } catch(e) {
     state.loading = false
@@ -403,11 +408,11 @@ function skipParagraph() {
 }
 
 function render() {
-  $('html_start').style.display = display(!state.playing);
+  $('html_start').style.display = display(!state.started);
   $('language_select').style.display = display(!state.playing);
   $('html_pause').style.display = display(!state.loading && state.playing && !state.paused);
   $('html_play').style.display = display(!state.loading && state.playing && state.paused);
-  $('html_next').style.display = display(!state.loading && state.playing);
+  $('html_next').style.display = display(!state.loading && state.playing && state.started);
   $('html_skip').style.display = display(!state.loading && state.playing);
   $('html_spinner').style.display = display(state.loading);
   if (state.status) $('html_title').innerHTML = state.status;
