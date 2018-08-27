@@ -316,6 +316,7 @@ async function next(article) {
   console.info('Starting session');
   state.interjectArticle = null
   state.playing = true;
+  state.paused = false;
   state.loading = true;
   state.status = 'Finding something interesting to read. I\'ll keep checking as you move.'
   render();
@@ -426,7 +427,7 @@ function render() {
 function toSavedArticlesHTML(list, article) {
   return list + `
     <li class="mdl-list__item">
-      <span class="saved-article mdl-list__item-primary-content" onclick="playArticle('${article}')">${article}</span>
+      <span class="saved-article mdl-list__item-primary-content" onclick="playArticle(\`${article}\`)">${article}</span>
       <span class="mdl-list__item-secondary-action">
         <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" onclick="unsave('${article}')">
           unsave
