@@ -4,7 +4,18 @@ let map;
 let locationData;
 let cancelSpeaking;
 let skipThisParagraph;
+let savedArticles
+const SAVED_SEPARATOR = '/'
+const SAVED_ARTICLES = 'SAVED_ARTICLES'
+try {
+  savedArticles = localStorage.getItem(SAVED_ARTICLES).split(SAVED_SEPARATOR)
+} catch(e) {
+  savedArticles = []
+}
+
 const state = {
+  currentArticle: null,
+  savedArticles,
   playing: false,
   loading: false,
   paused: false,
@@ -28,7 +39,7 @@ const languageMap = {
   'Cebuano': {wikiTag: 'ceb', speechTag: 'ceb', welcomeMsg: 'Welcome sa imong pagbiyahe sa dalan.'},
   'Svenska': {wikiTag: 'sv', speechTag: 'sv-SE', welcomeMsg: 'Välkommen till din vägresa.'},
   'Deutsch': {wikiTag: 'de', speechTag: 'de-DE', welcomeMsg: 'Willkommen zu Ihrem Roadtrip.'},
-  'Nederlands	': {wikiTag: 'nl', speechTag: 'nl-NL', welcomeMsg: 'Welkom bij je roadtrip.'},
+  'Nederlands ': {wikiTag: 'nl', speechTag: 'nl-NL', welcomeMsg: 'Welkom bij je roadtrip.'},
   'русский': {wikiTag: 'ru', speechTag: 'ru-RU', welcomeMsg: 'Добро пожаловать в свою поездку.'},
   'Italiano': {wikiTag: 'it', speechTag: 'it-IT', welcomeMsg: 'Benvenuto nel tuo viaggio.'},
   'Español': {wikiTag: 'es', speechTag: 'es', welcomeMsg: 'Bienvenido a tu viaje.'},
@@ -52,7 +63,7 @@ function wikiUrl(path, api, mobile) {
 }
 
 function startWatchLocation() {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     navigator.geolocation.watchPosition(pos => {
       if (!manualPosition) {
         console.info('Updated position', pos);
@@ -65,8 +76,10 @@ function startWatchLocation() {
     }, error => {
       console.error('WatchPosition error.', error.message, error);
       alert('Failed to find your current location.')
+      reject()
     }, {
       enableHighAccuracy: false,
+      timeout: 5000,
       maximumAge: 15000,
     });
   });
@@ -172,24 +185,26 @@ async function getArticleForLocation() {
 
 async function getNearbyArticle() {
   console.info('Finding nearby article');
-  const response = await fetchWithTimeout(wikiUrl('action=query&format=json&origin=*&generator=geosearch&ggsradius=10000&ggsnamespace=0&ggslimit=50&formatversion=2&ggscoord=' + encodeURIComponent(position.coords.latitude) + '%7C' + encodeURIComponent(position.coords.longitude), true, true));
+  const latitude = position.coords.latitude.toFixed(4)
+  const longitude = position.coords.longitude.toFixed(4)
+  const response = await fetchWithTimeout(wikiUrl('action=query&format=json&origin=*&generator=geosearch&ggsradius=10000&ggsnamespace=0&ggslimit=50&formatversion=2&ggscoord=' + encodeURIComponent(latitude) + '%7C' + encodeURIComponent(longitude), true, true));
   if (!response.ok) {
     console.error('Wikipedia nearby failed', response)
     throw new Error('Wikipedia nearby is down');
   }
-  const json = await response.json();
+    const json = await response.json();
   console.info('Nearby response', json);
-  const pages = json.query.pages;
-  for (let page of pages) {
-    const title = page.title;
-    if (seen[title]) {
-      continue;
+    const pages = json.query.pages;
+    for (let page of pages) {
+      const title = page.title;
+      if (seen[title]) {
+        continue;
+      }
+      seen[title] = true;
+      console.info('Title', title);
+      return getContent(title);
     }
-    seen[title] = true;
-    console.info('Title', title);
-    return getContent(title);
-  }
-  return null;
+    return null;
 }
 
 async function speak(text, language) {
@@ -213,7 +228,7 @@ async function speak(text, language) {
       }
     }
   }
-  
+
 }
 
 function speakSentence(text, language) {
@@ -251,6 +266,7 @@ function speakSentence(text, language) {
 }
 
 async function talkAboutLocation(article) {
+  state.currentArticle = article.title
   state.status = `Reading about <a href="${article.url}" target="_blank">${html(article.title)}</a>`;
   render();
   gtag('config', 'UA-121987888-1', {
@@ -269,9 +285,8 @@ async function talkAboutLocation(article) {
 }
 
 async function start() {
-  state.playing = true;
   state.loading = true;
-  state.lang = languageMap[$('language_inner_select').value];
+  state.started = true;
   state.status = 'Finding your location.'
   render();
   const s = startWatchLocation();
@@ -280,13 +295,28 @@ async function start() {
     timeout: 10000,
   });
   await speak(state.lang.welcomeMsg + '\n\n', state.lang.speechTag);
-  await s;
-  next();
+
+  try {
+    await s
+    if (state.playing) {
+      forward()
+    } else {
+      state.playing = true;
+      next()
+    }
+
+  } catch(e) {
+    state.loading = false
+    state.status = 'unable to retrieve your location'
+    render()
+  }
 }
 
-async function next() {
+async function next(article) {
   console.info('Starting session');
+  state.interjectArticle = null
   state.playing = true;
+  state.paused = false;
   state.loading = true;
   state.status = 'Finding something interesting to read. I\'ll keep checking as you move.'
   render();
@@ -295,27 +325,49 @@ async function next() {
     'page_path': '/next/' + state.lang.speechTag,
   });
   try {
-    console.info('Finding article.');
-    let article = await getArticleForLocation();
     if (!article) {
-      console.info('Did not find location article. Trying nearby.');
-      article = await getNearbyArticle();
+      try {
+        console.info('Finding article.');
+        article = await getArticleForLocation()
+
+      } catch(e) {
+        try {
+          console.info('Did not find location article. Trying nearby.');
+          article = await getNearbyArticle();
+
+        } catch (e) {
+          console.info('Did not find article');
+          setTimeout(next, pollSeconds * 1000);
+        }
+      }
     }
-    if (!article) {
-      console.info('Did not find article');
-      setTimeout(next, pollSeconds * 1000);
-      return;
-    }
+
     console.info('Retrieved article');
     state.loading = false;
     render();
     await talkAboutLocation(article);
+
   } catch (e) {
     console.error('Error :' + e, e);
     setTimeout(next, pollSeconds * 1000);
     return;
   }
-  next();
+  next(state.interjectArticle);
+}
+
+function save(article) {
+  if (state.savedArticles.length === 10) state.savedArticles.shift()
+  state.savedArticles.push(article)
+  render()
+  console.log('save article', article)
+  console.log('saved articles', state.savedArticles)
+}
+
+function unsave(article) {
+  state.savedArticles = state.savedArticles.filter(a => a !== article)
+  render()
+  console.log('unsave article', article)
+  console.log('saved articles', state.savedArticles)
 }
 
 function pause() {
@@ -330,6 +382,22 @@ function play() {
   window.speechSynthesis.resume();
 }
 
+async function playArticle(title) {
+  try {
+    const article = await getContent(title)
+    if (state.playing) {
+      state.interjectArticle = article
+      forward()
+
+    } else {
+      next(article)
+    }
+
+  } catch(e) {
+    console.error(e)
+  }
+}
+
 function forward() {
   cancelSpeaking = true;
   window.speechSynthesis.cancel();
@@ -341,14 +409,32 @@ function skipParagraph() {
 }
 
 function render() {
-  $('html_start').style.display = display(!state.playing);
+  $('html_start').style.display = display(!state.started);
   $('language_select').style.display = display(!state.playing);
   $('html_pause').style.display = display(!state.loading && state.playing && !state.paused);
   $('html_play').style.display = display(!state.loading && state.playing && state.paused);
-  $('html_next').style.display = display(!state.loading && state.playing);
+  $('html_next').style.display = display(!state.loading && state.playing && state.started);
   $('html_skip').style.display = display(!state.loading && state.playing);
   $('html_spinner').style.display = display(state.loading);
-  $('html_title').innerHTML = state.status;
+  if (state.status) $('html_title').innerHTML = state.status;
+
+  const currectArticleSaved = state.savedArticles.find(a => a === state.currentArticle)
+  $('html_save').style.display = display(!state.loading && state.playing && !currectArticleSaved);
+  $('html_unsave').style.display = display(!state.loading && state.playing && currectArticleSaved);
+  $('html_saved_articles').innerHTML = state.savedArticles.reduce(toSavedArticlesHTML, '')
+}
+
+function toSavedArticlesHTML(list, article) {
+  return list + `
+    <li class="mdl-list__item">
+      <span class="saved-article mdl-list__item-primary-content" onclick="playArticle(\`${article}\`)">${article}</span>
+      <span class="mdl-list__item-secondary-action">
+        <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" onclick="unsave('${article}')">
+          unsave
+        </button>
+      </span>
+    </li>
+  `
 }
 
 function simpleHtmlToText(html) {
@@ -407,7 +493,7 @@ function initMap() {
       }
     };
     centerMarker.setPosition({
-      lat: map.getCenter().lat(), 
+      lat: map.getCenter().lat(),
       lng: map.getCenter().lng()
     });
     console.info('Map position', position);
@@ -447,6 +533,7 @@ function selectLang(langTag) {
     };
   }
   initLanguageSelect(selected);
+  state.lang = languageMap[$('language_inner_select').value];
 }
 
 function timeout(time, message) {
@@ -456,7 +543,7 @@ function timeout(time, message) {
 }
 
 function fetchWithTimeout(url, paras) {
-  return Promise.race([fetch(url, paras), 
+  return Promise.race([fetch(url, paras),
                        timeout(15 * 1000, 'Fetch timed out for ' + url)]);
 }
 
@@ -473,8 +560,12 @@ async function guessLang() {
 function init() {
   onunload = function() {
     window.speechSynthesis.cancel();
+    if(state.savedArticles.length) {
+      localStorage.setItem(SAVED_ARTICLES, state.savedArticles.join(SAVED_SEPARATOR))
+    }
   }
   navigator.serviceWorker.register("/sw.js");
+  render();
 
   const l = new URLSearchParams(location.search).get('lang');
   if (l) {

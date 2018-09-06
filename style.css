@@ -7,3 +7,12 @@
 #map {
   height: 300px
 }
+
+.mdl-button {
+  margin-top:4px;
+}
+
+.saved-article.mdl-list__item-primary-content {
+  cursor: pointer;
+  text-decoration: underline;
+}
